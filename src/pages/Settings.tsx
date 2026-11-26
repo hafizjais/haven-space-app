@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { friendlyError, useData, type Settings } from '../lib/data'
 import { supabase } from '../lib/supabase'
 import { Alert, Field, useSaver } from '../ui'
+import { BUCKET, TEMPLATE_PATH, clearTemplateCache, loadTemplate, parseTemplate, saveBlob, type Template } from '../lib/template'
 
 export default function SettingsPage() {
   const { data, reload } = useData()
@@ -59,6 +60,7 @@ export default function SettingsPage() {
           {saved && <Alert kind="ok">Saved.</Alert>}
           <div className="row end"><button className="primary" disabled={s.busy} onClick={save}>Save</button></div>
         </section>
+        <TemplateCard />
         <section className="card">
           <h2>Admins</h2>
           <p className="muted small">Everyone here has full access. To add someone: add their email here, then they open this site, tap "New admin? Create account" and sign up with that email.</p>
@@ -75,5 +77,43 @@ export default function SettingsPage() {
         </section>
       </div>
     </>
+  )
+}
+
+function TemplateCard() {
+  const [tpl, setTpl] = useState<Template | null | undefined>(undefined)
+  const s = useSaver()
+  useEffect(() => { loadTemplate().then(setTpl).catch(e => { console.error('Template', e); setTpl(null) }) }, [])
+  async function upload(f: File | undefined) {
+    if (!f) return
+    const ok = await s.run(async () => {
+      const parsed = await parseTemplate(await f.arrayBuffer()).catch(() => { throw new Error('That file is not a Word (.docx) document.') })
+      if (!parsed.placeholders.length) throw new Error('No {{fields}} found in this document.')
+      const { error } = await supabase.storage.from(BUCKET).upload(TEMPLATE_PATH, await f.arrayBuffer(), { upsert: true, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      if (error) throw new Error(error.message)
+      clearTemplateCache(); setTpl(await loadTemplate())
+    })
+    if (!ok) return
+  }
+  async function download() {
+    const { data, error } = await supabase.storage.from(BUCKET).download(TEMPLATE_PATH)
+    if (error) return s.setErr(error.message)
+    saveBlob(data, 'Template_Agreement.docx')
+  }
+  return (
+    <section className="card">
+      <h2>Agreement template (Word)</h2>
+      <p className="muted small">Fields written as {'{{Field Name}}'} are filled in by Create Agreement. The 1st picture is used as the landlord signature, the 2nd as the witness signature, and the 4th and 5th are replaced with the tenant's IC photos. Stored privately.</p>
+      {tpl === undefined ? <p className="muted">Checking…</p> : tpl ? <>
+        <p className="small">Fields found: {tpl.placeholders.map(p => <span key={p} className="badge muted">{p}</span>)}</p>
+        <p className="small muted">{tpl.images.length} pictures found.</p>
+      </> : <Alert kind="warn">No template uploaded yet.</Alert>}
+      {s.err && <Alert>{s.err}</Alert>}
+      <div className="row wrap">
+        <label className="btn primary small">{tpl ? 'Replace template' : 'Upload template'}<input type="file" hidden accept=".docx" onChange={e => upload(e.target.files?.[0])} /></label>
+        {tpl && <button className="small" onClick={download}>Download current</button>}
+        {s.busy && <span className="muted small">Uploading…</span>}
+      </div>
+    </section>
   )
 }

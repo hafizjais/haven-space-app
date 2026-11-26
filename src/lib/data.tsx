@@ -16,6 +16,8 @@ export type Tenancy = {
   id: string; room_id: string; tenant_id: string; status: 'active' | 'ended'; monthly_rent: number; deposit: number | null
   pay_day: number | null; agreement_date: string | null; start_date: string | null; end_date: string | null
   moved_in_on: string | null; moved_out_on: string | null; signed: boolean; doc_link: string | null; remarks: string | null
+  premises_address: string | null; ic_front_path: string | null; ic_back_path: string | null
+  signed_file_path: string | null; signed_uploaded_at: string | null; extra_fields: Record<string, string> | null
 }
 export type Payment = {
   id: string; tenancy_id: string; period: string; amount: number; paid_on: string | null; method: string | null
