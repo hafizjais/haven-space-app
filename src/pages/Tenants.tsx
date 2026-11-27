@@ -78,6 +78,24 @@ function TenantModal({ t: init, onClose }: { t: Partial<Tenant>; onClose: () => 
     })
     if (ok) { await reload(); onClose() }
   }
+  const dup = dupIc ?? dupPhone
+  const history = (id: string) => data.tenancies.filter(x => x.tenant_id === id)
+    .map(x => `${L.roomLabel(x.room_id)}${x.status === 'ended' ? ' (moved out)' : ''}`).join(', ') || 'no rentals'
+  const bothActive = !!dup && tenancies.some(x => x.status === 'active') && data.tenancies.some(x => x.tenant_id === dup.id && x.status === 'active')
+  async function mergeAndSave() {
+    if (!dup || !t.id) return
+    if (!confirm(`Merge ${dup.nickname} into this tenant? Their rentals, payments and agreements move here and the duplicate record is removed.`)) return
+    const ok = await s.run(async () => {
+      const { error } = await supabase.rpc('merge_tenants', { keep_id: t.id, drop_id: dup.id })
+      if (error) throw new Error(friendlyError(error.message))
+      // notes were combined by the merge; only overwrite them if edited in this form
+      const row = { nickname: t.nickname!.trim(), full_name: t.full_name?.trim().toUpperCase() || null, ic_no: t.ic_no?.trim() || null, phone: t.phone?.trim() || null,
+        ...(t.notes !== init.notes ? { notes: t.notes || null } : {}) }
+      const { error: e2 } = await supabase.from('tenants').update(row).eq('id', t.id)
+      if (e2) throw new Error(friendlyError(e2.message))
+    })
+    if (ok) { await reload(); onClose() }
+  }
   async function del() {
     if (!confirm('Delete this tenant?')) return
     const ok = await s.run(async () => { const { error } = await supabase.from('tenants').delete().eq('id', t.id!); if (error) throw new Error(friendlyError(error.message)) })
@@ -93,8 +111,13 @@ function TenantModal({ t: init, onClose }: { t: Partial<Tenant>; onClose: () => 
       <Field label="Full name (as in IC)"><input value={t.full_name ?? ''} onChange={e => setT({ ...t, full_name: e.target.value })} /></Field>
       <Field label="IC number"><input value={t.ic_no ?? ''} onChange={e => setT({ ...t, ic_no: e.target.value })} /></Field>
       <Field label="Notes"><textarea rows={2} value={t.notes ?? ''} onChange={e => setT({ ...t, notes: e.target.value })} /></Field>
-      {dupIc && <Alert kind="warn">Another tenant has this IC: {dupIc.nickname}</Alert>}
-      {dupPhone && <Alert kind="warn">Another tenant has this phone: {dupPhone.nickname}</Alert>}
+      {dup && <Alert kind="warn">
+        <div>Another tenant record has this {dupIc ? 'IC' : 'phone'}: <b>{dup.nickname}</b>{dup.full_name ? ` (${dup.full_name})` : ''}{dup.phone ? ` · ${dup.phone}` : ''} · {history(dup.id)}</div>
+        {!t.id ? <div>Use that tenant instead of adding a new one.</div>
+          : bothActive ? <div>Both records rent a room right now, so they can't be merged. Check the {dupIc ? 'IC number' : 'phone number'} is right.</div>
+          : <div className="row wrap" style={{ marginTop: '.4rem' }}><span>Same person? Merge them to keep one record with all rentals, payments and agreements.</span>
+              <button className="small primary" disabled={s.busy} onClick={mergeAndSave}>Merge with {dup.nickname} and save</button></div>}
+      </Alert>}
       {s.err && <Alert>{s.err}</Alert>}
       <div className="row between">
         {t.id && tenancies.length === 0 ? <button className="danger" onClick={del}>Delete</button> : <span />}

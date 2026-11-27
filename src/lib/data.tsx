@@ -147,10 +147,11 @@ export function useLookups() {
 }
 
 export function friendlyError(msg: string) {
+  if (msg.includes('merge_error: ')) return msg.slice(msg.indexOf('merge_error: ') + 13).replace(/^b/, 'B')
   if (msg.includes('room_full: ')) return msg.slice(msg.indexOf('room_full: ') + 11).replace(/^t/, 'T')
   if (msg.includes('one_active_tenancy_per_room')) return 'This room already has an active tenant. End that tenancy first.'
   if (msg.includes('one_active_tenancy_per_tenant')) return 'This tenant already rents another room. End that tenancy first (no duplicate tenants).'
-  if (msg.includes('tenants_ic_unique')) return 'A tenant with this IC number already exists. Use the existing tenant instead.'
+  if (msg.includes('tenants_ic_unique')) return 'Another tenant record has this IC number. If it is the same person, use Merge in the warning above.'
   if (msg.includes('row-level security')) return 'Your account is not on the admin list. Ask an admin to add your email in Settings.'
   return msg
 }
