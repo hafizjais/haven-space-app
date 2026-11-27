@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RM, addMonths, coversMonth, monthLabel, paidFor, propertyStats, shortMonth, thisMonth, useData, useLookups } from '../lib/data'
-import { Badge, MonthPicker, Stat } from '../ui'
+import { RM, addMonths, coversMonth, monthLabel, paidFor, propColor, propertyStats, shortMonth, thisMonth, useData, useLookups } from '../lib/data'
+import { Badge, MonthPicker, PropTag, Stat } from '../ui'
+import { Icon } from '../icons'
 import PropertyDashboard from './PropertyDashboard'
 
 export default function Dashboard() {
@@ -54,10 +55,10 @@ export default function Dashboard() {
       </div>
       {view !== 'all' ? <PropertyDashboard propertyId={view} month={month} /> : <>
       <div className="stats">
-        <Stat label="Collected" value={RM(tot.collected)} sub={`of ${RM(tot.target)} target · ${tot.target ? Math.round(tot.collected / tot.target * 100) : 0}%`} />
-        <Stat label="Expenses" value={RM(tot.expenses + company)} sub={`properties ${RM(tot.expenses)} · company ${RM(company)}`} />
-        <Stat label="Profit" value={RM(profit)} tone={profit < 0 ? 'bad' : 'ok'} sub={monthLabel(month)} />
-        <Stat label="Occupancy" value={`${tot.occupied}/${tot.rooms}`} sub={`${tot.rooms ? Math.round(tot.occupied / tot.rooms * 100) : 0}% beds filled · ${vacant.length} room${vacant.length === 1 ? '' : 's'} with space`} />
+        <Stat icon="wallet" accent="teal" label="Collected" value={RM(tot.collected)} sub={`of ${RM(tot.target)} target · ${tot.target ? Math.round(tot.collected / tot.target * 100) : 0}%`} />
+        <Stat icon="receipt" accent="amber" label="Expenses" value={RM(tot.expenses + company)} sub={`properties ${RM(tot.expenses)} · company ${RM(company)}`} />
+        <Stat icon="trend" accent="green" label="Profit" value={RM(profit)} tone={profit < 0 ? 'bad' : 'ok'} sub={monthLabel(month)} />
+        <Stat icon="bed" accent="violet" label="Occupancy" value={`${tot.occupied}/${tot.rooms}`} sub={`${tot.rooms ? Math.round(tot.occupied / tot.rooms * 100) : 0}% beds filled · ${vacant.length} room${vacant.length === 1 ? '' : 's'} with space`} />
       </div>
 
       <div className="grid2">
@@ -67,7 +68,7 @@ export default function Dashboard() {
             <thead><tr><th>Property</th><th className="num">Collected</th><th className="num">Target</th><th className="num">Expenses</th><th className="num">Profit</th><th>Rooms</th><th>Rate</th></tr></thead>
             <tbody>{stats.map(s => (
               <tr key={s.property.id}>
-                <td><button className="link" onClick={() => setView(s.property.id)}><b>{s.property.code}</b></button> <span className="muted">{s.property.name}</span></td>
+                <td><button className="plink" onClick={() => setView(s.property.id)} title="Open property dashboard"><PropTag code={s.property.code} color={propColor(data, s.property.id)} /> <span>{s.property.name}</span></button></td>
                 <td className="num">{RM(s.collected)}</td>
                 <td className="num muted">{RM(s.property.target_collected || s.expected)}</td>
                 <td className="num">{RM(s.expenses)}</td>
@@ -108,7 +109,7 @@ export default function Dashboard() {
                   <div className="small muted">Pay day {t.pay_day ?? '?'} · paid {RM(paid)} of {RM(t.monthly_rent)}</div></div>
                 <div className="row">
                   {overdue ? <Badge kind="bad">Overdue</Badge> : <Badge kind="muted">Due</Badge>}
-                  {tn?.phone && <a className="btn small" target="_blank" rel="noreferrer" href={waLink(tn.phone, tn.nickname, t.monthly_rent - paid, month)}>WhatsApp</a>}
+                  {tn?.phone && <a className="btn small wa" target="_blank" rel="noreferrer" href={waLink(tn.phone, tn.nickname, t.monthly_rent - paid, month)}><Icon name="chat" size={14} /> WhatsApp</a>}
                 </div>
               </li>
             })}</ul>
@@ -119,10 +120,10 @@ export default function Dashboard() {
         <section className="card">
           <h2>Alerts</h2>
           <ul className="list">
-            {stats.filter(s => s.rate < alertAt).map(s => <li key={s.property.id}><span>⚠ <b>{s.property.code}</b> collection at {Math.round(s.rate)}% (below {alertAt}%)</span></li>)}
-            {ending.map(t => <li key={t.id}><span>📅 <b>{L.tenant(t.tenant_id)?.nickname}</b> ({L.roomLabel(t.room_id)}) agreement ends {t.end_date}</span></li>)}
-            {unsigned.length > 0 && <li><span>✎ {unsigned.length} active agreements not signed yet. <Link to="/agreements">View</Link></span></li>}
-            {vacant.length > 0 && <li><span>⌂ Vacant: {vacant.map(r => L.roomLabel(r.id) + (r.beds > 1 ? ` (${L.freeBeds(r.id)} of ${r.beds} beds)` : '')).join(', ')}</span></li>}
+            {stats.filter(s => s.rate < alertAt).map(s => <li key={s.property.id} className="al bad"><span><Icon name="alert" size={16} /> <PropTag code={s.property.code} color={propColor(data, s.property.id)} /> collection at {Math.round(s.rate)}% (below {alertAt}%)</span></li>)}
+            {ending.map(t => <li key={t.id} className="al warn"><span><Icon name="file" size={16} /> <b>{L.tenant(t.tenant_id)?.nickname}</b> ({L.roomLabel(t.room_id)}) agreement ends {t.end_date}</span></li>)}
+            {unsigned.length > 0 && <li className="al info"><span><Icon name="file" size={16} /> {unsigned.length} active agreements not signed yet. <Link to="/agreements">View</Link></span></li>}
+            {vacant.length > 0 && <li className="al ok"><span><Icon name="bed" size={16} /> Vacant: {vacant.map(r => L.roomLabel(r.id) + (r.beds > 1 ? ` (${L.freeBeds(r.id)} of ${r.beds} beds)` : '')).join(', ')}</span></li>}
           </ul>
         </section>
       </div>

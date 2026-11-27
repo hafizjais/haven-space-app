@@ -134,6 +134,13 @@ export function roomOrder(a?: Room, b?: Room) {
   return Number((a.beds || 1) > 1) - Number((b.beds || 1) > 1) || a.sort - b.sort || a.name.localeCompare(b.name)
 }
 
+const PROP_COLORS = ['#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#6366f1', '#f97316', '#14b8a6', '#84cc16', '#e11d48']
+/** A distinct colour per property (by its order), used for tags and chart accents. */
+export function propColor(d: Data, propertyId: string | null | undefined) {
+  const i = d.properties.findIndex(p => p.id === propertyId)
+  return PROP_COLORS[(i < 0 ? 0 : i) % PROP_COLORS.length]
+}
+
 export function paidFor(d: Data, tenancyId: string, p: string) {
   return d.payments.filter(x => x.tenancy_id === tenancyId && x.period === p).reduce((s, x) => s + x.amount, 0)
 }

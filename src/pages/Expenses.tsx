@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { CATEGORIES, COMPANY_CATS, PROPERTY_CATS, RM, friendlyError, monthLabel, propertyStats, thisMonth, useData, type Expense } from '../lib/data'
+import { CATEGORIES, COMPANY_CATS, PROPERTY_CATS, RM, friendlyError, monthLabel, propColor, propertyStats, thisMonth, useData, type Expense } from '../lib/data'
 import { supabase } from '../lib/supabase'
-import { Alert, MonthPicker, useSaver } from '../ui'
+import { Alert, MonthPicker, PropTag, useSaver } from '../ui'
 
 export default function Expenses() {
   const { data, reload } = useData()
@@ -34,7 +34,7 @@ export default function Expenses() {
         {stats.map(st => {
           const items = data.expenses.filter(e => e.period === month && e.property_id === st.property.id)
           return <section className="card" key={st.property.id}>
-            <h2>{st.property.code} · {st.property.name}</h2>
+            <h2><PropTag code={st.property.code} color={propColor(data, st.property.id)} /> {st.property.name}</h2>
             <ExpenseList items={items} />
             <AddExpense month={month} propertyId={st.property.id} cats={PROPERTY_CATS} />
             <dl className="sum">

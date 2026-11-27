@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { RM, friendlyError, roomOrder, icDigits, phoneDigits, today, useData, useLookups, type Property, type Room, type Tenancy } from '../lib/data'
+import { RM, friendlyError, propColor, roomOrder, icDigits, phoneDigits, today, useData, useLookups, type Property, type Room, type Tenancy } from '../lib/data'
 import { supabase } from '../lib/supabase'
-import { Alert, Badge, Field, Modal, useSaver } from '../ui'
+import { Alert, Badge, Field, Modal, PropTag, useSaver } from '../ui'
 
 export default function Rooms() {
   const { data } = useData()
@@ -31,7 +31,7 @@ export default function Rooms() {
         return (
           <section className="card" key={p.id}>
             <div className="row between">
-              <h2>{p.code} · {p.name}</h2>
+              <h2><PropTag code={p.code} color={propColor(data, p.id)} /> {p.name}</h2>
               <div className="row">
                 {p.map_url && <a className="btn small" href={p.map_url} target="_blank" rel="noreferrer">Map</a>}
                 {p.drive_url && <a className="btn small" href={p.drive_url} target="_blank" rel="noreferrer">Photos</a>}

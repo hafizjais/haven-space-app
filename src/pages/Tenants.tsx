@@ -53,7 +53,7 @@ export default function Tenants() {
             </tr>
           })}</tbody>
         </table></div>
-        {list.length === 0 && <p className="muted">No tenants match.</p>}
+        {list.length === 0 && <p className="empty">No tenants match your search.</p>}
       </section>
       {edit && <TenantModal t={edit} onClose={() => setEdit(null)} />}
     </>

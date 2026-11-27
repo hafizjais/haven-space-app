@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { RM, coversMonth, roomOrder, friendlyError, monthLabel, paidFor, shortMonth, thisMonth, today, useData, useLookups, type Tenancy } from '../lib/data'
+import { RM, coversMonth, propColor, roomOrder, friendlyError, monthLabel, paidFor, shortMonth, thisMonth, today, useData, useLookups, type Tenancy } from '../lib/data'
 import { supabase } from '../lib/supabase'
-import { Alert, Badge, Field, Modal, MonthPicker, useSaver } from '../ui'
+import { Alert, Badge, Field, Modal, MonthPicker, PropTag, useSaver } from '../ui'
 
 export default function Payments() {
   const { data, reload } = useData()
@@ -68,8 +68,9 @@ export default function Payments() {
         const exp = ts.reduce((s, t) => s + t.monthly_rent, 0)
         return (
           <section className="card" key={p.id}>
-            <h2>{p.code} · {p.name} <span className="muted small">{RM(total)} of {RM(exp)}</span></h2>
-            {ts.length === 0 ? <p className="muted">No tenants this month.</p> : (
+            <h2><PropTag code={p.code} color={propColor(data, p.id)} /> {p.name} <span className="muted small">{RM(total)} of {RM(exp)}</span></h2>
+            <div className="progress"><i style={{ width: `${exp ? Math.min(100, total / exp * 100) : 0}%` }} className={exp && total >= exp ? 'full' : ''} /></div>
+            {ts.length === 0 ? <p className="empty">No tenants this month.</p> : (
               <ul className="list pay-list">{ts.map(t => {
                 const paid = paidFor(data, t.id, month)
                 const tn = L.tenant(t.tenant_id)
@@ -92,7 +93,7 @@ export default function Payments() {
         const ts = tenanciesFor(p.id, t => months.some(m => coversMonth(t, m)) || data.payments.some(x => x.tenancy_id === t.id && x.period.startsWith(year)))
         return (
           <section className="card" key={p.id}>
-            <h2>{p.code} · {p.name} · {year}</h2>
+            <h2><PropTag code={p.code} color={propColor(data, p.id)} /> {p.name} <span className="muted">· {year}</span></h2>
             <div className="table-wrap"><table className="grid">
               <thead><tr><th>Room / tenant</th><th className="num">Rent</th>{months.map(m => <th key={m} className="num">{shortMonth(m)}</th>)}</tr></thead>
               <tbody>

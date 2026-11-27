@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
-import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, shortMonth, propertyStats, roomOrder, useData, useLookups, type Tenancy } from '../lib/data'
-import { Badge, Stat } from '../ui'
+import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, propColor, shortMonth, propertyStats, roomOrder, useData, useLookups, type Tenancy } from '../lib/data'
+import { Badge, PropTag, Stat } from '../ui'
 
 export default function PropertyDashboard({ propertyId, month }: { propertyId: string; month: string }) {
   const { data } = useData()
@@ -37,14 +37,14 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
 
   return (
     <>
-      <h2 className="sub-head">{p.code} · {p.name} · {monthLabel(month)}</h2>
+      <h2 className="sub-head"><PropTag code={p.code} color={propColor(data, p.id)} /> {p.name} <span className="muted">· {monthLabel(month)}</span></h2>
       <div className="stats six">
-        <Stat label="Net collected" value={RM(st.collected)} sub={`Target ${RM(targetCollected)}`} />
-        <Stat label="Total expenses" value={RM(st.expenses)} tone={p.target_expenses && st.expenses > p.target_expenses ? 'bad' : undefined} sub={`Target ${RM(p.target_expenses)}`} />
-        <Stat label="Net profit / (loss)" value={RM(st.profit)} tone={st.profit < 0 ? 'bad' : 'ok'} sub={`Target profit ${RM(targetProfit)}`} />
-        <Stat label="Occupancy" value={`${Math.round(occPct)}%`} sub={`${st.occupied} of ${st.rooms} beds occupied`} />
-        <Stat label="Maintenance" value={RM(maintTotal)} sub={`${maint.length} item${maint.length === 1 ? '' : 's'} this month`} />
-        <Stat label="Collection rate" value={`${Math.round(st.rate)}%`} tone={st.rate < alertAt ? 'bad' : 'ok'} sub={st.rate < alertAt ? `Below ${alertAt}% alert level` : 'At or above alert level'} />
+        <Stat icon="wallet" accent="teal" label="Net collected" value={RM(st.collected)} sub={`Target ${RM(targetCollected)}`} />
+        <Stat icon="receipt" accent="amber" label="Total expenses" value={RM(st.expenses)} tone={p.target_expenses && st.expenses > p.target_expenses ? 'bad' : undefined} sub={`Target ${RM(p.target_expenses)}`} />
+        <Stat icon="trend" accent="green" label="Net profit / (loss)" value={RM(st.profit)} tone={st.profit < 0 ? 'bad' : 'ok'} sub={`Target profit ${RM(targetProfit)}`} />
+        <Stat icon="bed" accent="violet" label="Occupancy" value={`${Math.round(occPct)}%`} sub={`${st.occupied} of ${st.rooms} beds occupied`} />
+        <Stat icon="wrench" accent="pink" label="Maintenance" value={RM(maintTotal)} sub={`${maint.length} item${maint.length === 1 ? '' : 's'} this month`} />
+        <Stat icon="percent" accent="blue" label="Collection rate" value={`${Math.round(st.rate)}%`} tone={st.rate < alertAt ? 'bad' : 'ok'} sub={st.rate < alertAt ? `Below ${alertAt}% alert level` : 'At or above alert level'} />
       </div>
 
       <div className="grid2">
@@ -70,7 +70,7 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
       <div className="grid2">
         <section className="card">
           <h2>Maintenance · {monthLabel(month)}</h2>
-          {maint.length === 0 ? <p className="muted">No maintenance recorded.</p> : (
+          {maint.length === 0 ? <p className="empty">No maintenance recorded this month.</p> : (
             <ul className="list compact">{maint.map(e => (
               <li key={e.id}><span>{e.label || 'Maintenance'} {e.note && <span className="muted small">· {e.note}</span>}</span><b>{RM(e.amount)}</b></li>
             ))}</ul>
@@ -78,7 +78,7 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
         </section>
         <section className="card">
           <h2>All expenses · {monthLabel(month)}</h2>
-          {byCat.length === 0 ? <p className="muted">No expenses recorded.</p> : (
+          {byCat.length === 0 ? <p className="empty">No expenses recorded this month.</p> : (
             <dl className="sum flat">
               {byCat.map(([c, a]) => <Fragment key={c}><dt>{CATEGORIES[c] ?? c}</dt><dd>{RM(a)}</dd></Fragment>)}
               <dt><b>Total</b></dt><dd>{RM(st.expenses)}</dd>

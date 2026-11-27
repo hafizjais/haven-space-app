@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { Icon, type IconName } from './icons'
+import { useEffect, useState, type ReactNode, type CSSProperties } from 'react'
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -42,6 +43,15 @@ export function useSaver() {
   return { busy, err, setErr, run }
 }
 
-export function Stat({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'ok' | 'bad' }) {
-  return <div className={`stat ${tone ?? ''}`}><div className="stat-label">{label}</div><div className="stat-value">{value}</div>{sub && <div className="stat-sub">{sub}</div>}</div>
+export type Accent = 'teal' | 'blue' | 'amber' | 'violet' | 'pink' | 'green'
+export function Stat({ label, value, sub, tone, icon, accent = 'teal' }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'ok' | 'bad'; icon?: IconName; accent?: Accent }) {
+  return <div className={`stat ${tone ?? ''} a-${accent}`}>
+    <div className="stat-top"><div className="stat-label">{label}</div>{icon && <span className="stat-ico"><Icon name={icon} size={18} /></span>}</div>
+    <div className="stat-value">{value}</div>{sub && <div className="stat-sub">{sub}</div>}
+  </div>
+}
+
+/** Colour-coded property code, e.g. HS4. Colour comes from the property's position. */
+export function PropTag({ code, color }: { code: string; color: string }) {
+  return <span className="ptag" style={{ '--pc': color } as CSSProperties}>{code}</span>
 }
