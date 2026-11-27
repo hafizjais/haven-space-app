@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { RM, addMonths, coversMonth, monthLabel, paidFor, propertyStats, shortMonth, thisMonth, useData, useLookups } from '../lib/data'
 import { Badge, MonthPicker, Stat } from '../ui'
+import PropertyDashboard from './PropertyDashboard'
 
 export default function Dashboard() {
   const { data } = useData()
   const L = useLookups()
   const [month, setMonth] = useState(thisMonth())
+  const [view, setView] = useState('all')
   const stats = propertyStats(data, month)
   const alertAt = data.settings?.low_collection_alert ?? 80
   const company = data.expenses.filter(e => e.period === month && !e.property_id).reduce((s, e) => s + e.amount, 0)
@@ -42,8 +44,15 @@ export default function Dashboard() {
     <>
       <div className="page-head">
         <h1>Dashboard</h1>
-        <MonthPicker value={month} onChange={setMonth} />
+        <div className="row wrap">
+          <select value={view} onChange={e => setView(e.target.value)} aria-label="Property">
+            <option value="all">All properties</option>
+            {data.properties.map(p => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}
+          </select>
+          <MonthPicker value={month} onChange={setMonth} />
+        </div>
       </div>
+      {view !== 'all' ? <PropertyDashboard propertyId={view} month={month} /> : <>
       <div className="stats">
         <Stat label="Collected" value={RM(tot.collected)} sub={`of ${RM(tot.target)} target · ${tot.target ? Math.round(tot.collected / tot.target * 100) : 0}%`} />
         <Stat label="Expenses" value={RM(tot.expenses + company)} sub={`properties ${RM(tot.expenses)} · company ${RM(company)}`} />
@@ -58,7 +67,7 @@ export default function Dashboard() {
             <thead><tr><th>Property</th><th className="num">Collected</th><th className="num">Target</th><th className="num">Expenses</th><th className="num">Profit</th><th>Rooms</th><th>Rate</th></tr></thead>
             <tbody>{stats.map(s => (
               <tr key={s.property.id}>
-                <td><b>{s.property.code}</b> <span className="muted">{s.property.name}</span></td>
+                <td><button className="link" onClick={() => setView(s.property.id)}><b>{s.property.code}</b></button> <span className="muted">{s.property.name}</span></td>
                 <td className="num">{RM(s.collected)}</td>
                 <td className="num muted">{RM(s.property.target_collected || s.expected)}</td>
                 <td className="num">{RM(s.expenses)}</td>
@@ -117,6 +126,7 @@ export default function Dashboard() {
           </ul>
         </section>
       </div>
+      </>}
     </>
   )
 }

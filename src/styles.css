@@ -149,3 +149,12 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; text-align: right; fon
 .list li.edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
 .list li.edit-row b, .list li.edit-row input[aria-label=Note], .list li.edit-row > span { grid-column: 1 / -1; }
 .list li.edit-row > span { justify-content: flex-end; }
+
+/* property dashboard */
+.stats.six { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 900px) { .stats.six { grid-template-columns: repeat(2, 1fr); } }
+.sub-head { margin: 0 0 .75rem; font-size: 1.05rem; }
+.chart-bars i.p, .legend i.p { background: #d97706; }
+.chart-label { font-size: .7rem; text-align: center; color: var(--muted); white-space: nowrap; }
+dl.sum.flat { border-top: none; margin-top: 0; padding-top: 0; }
+button.link { background: none; border: none; padding: 0; color: var(--brand, inherit); cursor: pointer; text-decoration: underline; font: inherit; }
