@@ -27,6 +27,19 @@ export default function Payments() {
     if (ok) reload()
   }
 
+  async function undo(t: Tenancy) {
+    const rows = data.payments.filter(x => x.tenancy_id === t.id && x.period === month)
+    const last = rows.sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+    if (!last) return
+    const who = L.tenant(t.tenant_id)?.nickname
+    if (!confirm(`Remove ${RM(last.amount)} recorded for ${who}, ${monthLabel(month)}?`)) return
+    const ok = await quick.run(async () => {
+      const { error } = await supabase.from('payments').delete().eq('id', last.id)
+      if (error) throw new Error(friendlyError(error.message))
+    })
+    if (ok) reload()
+  }
+
   const year = month.slice(0, 4)
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}-01`)
 
@@ -68,7 +81,8 @@ export default function Payments() {
                   </div>
                   <Badge kind={st}>{st === 'ok' ? `Paid ${RM(paid)}` : st === 'warn' ? `Part ${RM(paid)}` : 'Not paid'}</Badge>
                   {paid < t.monthly_rent && <button className="primary small" disabled={quick.busy} onClick={() => payFull(t)}>✓ {RM(t.monthly_rent - paid)}</button>}
-                  <button className="small" onClick={() => setOpen({ t, period: month })}>Other</button>
+                  {paid > 0 && <button className="small" disabled={quick.busy} onClick={() => undo(t)}>↶ Undo</button>}
+                  <button className="small" onClick={() => setOpen({ t, period: month })}>{paid > 0 ? 'Edit' : 'Other'}</button>
                 </li>
               })}</ul>
             )}
@@ -130,6 +144,16 @@ function PaymentModal({ t, period: initial, onClose }: { t: Tenancy; period: str
     })
     if (ok) { await reload(); onClose() }
   }
+  const [editing, setEditing] = useState<{ id: string; amount: string; note: string; paid_on: string } | null>(null)
+  async function saveEdit() {
+    if (!editing) return
+    const a = Number(editing.amount); if (!(a > 0)) return s.setErr('Enter an amount above 0.')
+    const ok = await s.run(async () => {
+      const { error } = await supabase.from('payments').update({ amount: a, note: editing.note.trim() || null, paid_on: editing.paid_on || null }).eq('id', editing.id)
+      if (error) throw new Error(friendlyError(error.message))
+    })
+    if (ok) { setEditing(null); reload() }
+  }
   async function del(id: string) {
     if (!confirm('Delete this payment?')) return
     const ok = await s.run(async () => { const { error } = await supabase.from('payments').delete().eq('id', id); if (error) throw error })
@@ -150,10 +174,20 @@ function PaymentModal({ t, period: initial, onClose }: { t: Tenancy; period: str
       {s.err && <Alert>{s.err}</Alert>}
       <div className="row end"><button onClick={onClose}>Cancel</button><button className="primary" disabled={s.busy} onClick={save}>Save payment</button></div>
 
-      <h3>History</h3>
+      <h3>History <span className="muted small">(tap Edit or Delete to fix a mistake)</span></h3>
       <ul className="list compact">{history.map(x => (
+        editing?.id === x.id ? <li key={x.id} className="edit-row">
+          <b>{monthLabel(x.period)}</b>
+          <input type="number" inputMode="decimal" value={editing.amount} onChange={e => setEditing({ ...editing, amount: e.target.value })} aria-label="Amount" />
+          <input type="date" value={editing.paid_on} onChange={e => setEditing({ ...editing, paid_on: e.target.value })} aria-label="Date received" />
+          <input placeholder="Note" value={editing.note} onChange={e => setEditing({ ...editing, note: e.target.value })} aria-label="Note" />
+          <span className="row"><button className="small" onClick={() => setEditing(null)}>Cancel</button><button className="small primary" disabled={s.busy} onClick={saveEdit}>Save</button></span>
+        </li> :
         <li key={x.id}><span><b>{monthLabel(x.period)}</b> · {RM(x.amount)} <span className="muted small">{x.paid_on ?? ''} {x.method ?? ''} {x.note ? '· ' + x.note : ''}</span></span>
-          <button className="ghost small" onClick={() => del(x.id)} aria-label="Delete">🗑</button></li>
+          <span className="row nowrap">
+            <button className="ghost small" onClick={() => setEditing({ id: x.id, amount: String(x.amount), note: x.note ?? '', paid_on: x.paid_on ?? '' })} aria-label="Edit">✎ Edit</button>
+            <button className="ghost small" onClick={() => del(x.id)} aria-label="Delete">🗑 Delete</button>
+          </span></li>
       ))}{history.length === 0 && <li className="muted">No payments yet.</li>}</ul>
     </Modal>
   )

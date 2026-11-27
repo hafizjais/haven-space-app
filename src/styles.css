@@ -145,3 +145,7 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; text-align: right; fon
   .modal-bg { place-items: end center; padding: 0; }
   .modal { border-radius: 14px 14px 0 0; max-height: 92vh; }
 }
+
+.list li.edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.list li.edit-row b, .list li.edit-row input[aria-label=Note], .list li.edit-row > span { grid-column: 1 / -1; }
+.list li.edit-row > span { justify-content: flex-end; }
