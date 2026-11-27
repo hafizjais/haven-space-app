@@ -163,3 +163,12 @@ button.link { background: none; border: none; padding: 0; color: var(--brand, in
 ul.beds { list-style: none; margin: .25rem 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
 ul.beds li { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; border-top: 1px dashed var(--line); }
 ul.beds .bed-no { font-size: .7rem; color: var(--muted); min-width: 2.6rem; }
+
+/* profit trend */
+svg.trend { width: 100%; height: auto; display: block; }
+svg.trend .axis { stroke: var(--line); stroke-width: 1; }
+svg.trend .tr-pos { fill: var(--brand); } svg.trend .tr-neg { fill: var(--bad); }
+svg.trend .target { fill: none; stroke: #d97706; stroke-width: 2; stroke-dasharray: 5 4; }
+svg.trend .lbl { font-size: 9px; fill: var(--muted); }
+.legend i.tr-pos { background: var(--brand); } .legend i.tr-neg { background: var(--bad); }
+.legend i.tr-tgt { background: none; border-top: 2px dashed #d97706; height: 0; width: 14px; vertical-align: middle; border-radius: 0; }

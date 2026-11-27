@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, propertyStats, roomOrder, useData, useLookups, type Tenancy } from '../lib/data'
+import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, shortMonth, propertyStats, roomOrder, useData, useLookups, type Tenancy } from '../lib/data'
 import { Badge, Stat } from '../ui'
 
 export default function PropertyDashboard({ propertyId, month }: { propertyId: string; month: string }) {
@@ -34,7 +34,6 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
     while (rows.length < beds) rows.push({ paid: rows.length === 0 ? extra : 0, due: 0, status: 'Vacant' })
     return rows.map((x, i) => ({ ...x, r, key: r.id + i, label: beds > 1 ? `${r.name} · bed ${i + 1}` : r.name, tenant: x.t && L.tenant(x.t.tenant_id) }))
   })
-  const max = Math.max(1, ...rooms.flatMap(x => [x.paid, x.r.price]))
 
   return (
     <>
@@ -65,21 +64,7 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
           </table></div>
         </section>
 
-        <section className="card">
-          <h2>Paid in month vs room price</h2>
-          <div className="chart">
-            {rooms.map(x => (
-              <div key={x.key} className="chart-col" title={`${x.label}: paid ${RM(x.paid)}, price ${RM(x.r.price)}`}>
-                <div className="chart-bars">
-                  <i className="c" style={{ height: x.paid / max * 100 + '%' }} />
-                  <i className="p" style={{ height: x.r.price / max * 100 + '%' }} />
-                </div>
-                <small className="chart-label">{x.label.replace(/^Bilik /, '').replace(' · bed ', ' #')}</small>
-              </div>
-            ))}
-          </div>
-          <div className="legend"><span><i className="c" /> Paid</span><span><i className="p" /> Price</span></div>
-        </section>
+        <ProfitTrend propertyId={p.id} month={month} />
       </div>
 
       <div className="grid2">
@@ -102,5 +87,49 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
         </section>
       </div>
     </>
+  )
+}
+
+/** Year-to-date monthly profit (bars) against target profit (dashed line). */
+function ProfitTrend({ propertyId, month }: { propertyId: string; month: string }) {
+  const { data } = useData()
+  const n = Number(month.slice(5, 7))
+  const rows = Array.from({ length: n }, (_, i) => `${month.slice(0, 4)}-${String(i + 1).padStart(2, '0')}-01`).map(m => {
+    const st = propertyStats(data, m).find(x => x.property.id === propertyId)!
+    const target = (st.property.target_collected || st.expected) - st.property.target_expenses
+    return { m, collected: st.collected, expenses: st.expenses, profit: st.profit, target }
+  })
+  const sum = (k: 'collected' | 'expenses' | 'profit' | 'target') => rows.reduce((a, r) => a + r[k], 0)
+  const hi = Math.max(1, ...rows.flatMap(r => [r.profit, r.target]))
+  const lo = Math.min(0, ...rows.flatMap(r => [r.profit, r.target]))
+  const W = 320, H = 170, top = 8, bottom = 18, plotH = H - top - bottom
+  const y = (v: number) => top + (hi - v) / (hi - lo) * plotH
+  const slot = W / rows.length, bw = Math.min(26, slot * 0.6)
+  const line = rows.map((r, i) => `${i ? 'L' : 'M'}${(i + 0.5) * slot},${y(r.target)}`).join(' ')
+  const ytdProfit = sum('profit'), ytdTarget = sum('target')
+  return (
+    <section className="card">
+      <h2>Profit trend · {month.slice(0, 4)} year to date</h2>
+      <svg className="trend" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Monthly profit compared with target profit">
+        <line x1="0" x2={W} y1={y(0)} y2={y(0)} className="axis" />
+        {rows.map((r, i) => {
+          const x = (i + 0.5) * slot - bw / 2, y0 = y(0), y1 = y(r.profit)
+          return <g key={r.m}>
+            <rect x={x} width={bw} y={Math.min(y0, y1)} height={Math.max(1, Math.abs(y1 - y0))} rx="2" className={r.profit < 0 ? 'tr-neg' : 'tr-pos'}>
+              <title>{`${monthLabel(r.m)}: collected ${RM(r.collected)}, expenses ${RM(r.expenses)}, profit ${RM(r.profit)}, target ${RM(r.target)}`}</title>
+            </rect>
+            <text x={(i + 0.5) * slot} y={H - 4} textAnchor="middle" className="lbl">{shortMonth(r.m)}</text>
+          </g>
+        })}
+        {rows.length > 1 ? <path d={line} className="target" /> : <line x1={slot * 0.1} x2={slot * 0.9} y1={y(rows[0]?.target ?? 0)} y2={y(rows[0]?.target ?? 0)} className="target" />}
+      </svg>
+      <div className="legend"><span><i className="tr-pos" /> Profit</span><span><i className="tr-neg" /> Loss</span><span><i className="tr-tgt" /> Target profit</span></div>
+      <dl className="sum">
+        <dt>Collected (YTD)</dt><dd>{RM(sum('collected'))}</dd>
+        <dt>Expenses (YTD)</dt><dd>{RM(sum('expenses'))}</dd>
+        <dt>Profit (YTD)</dt><dd className={ytdProfit < 0 ? 'neg' : 'pos'}>{RM(ytdProfit)}</dd>
+        <dt>Target profit (YTD)</dt><dd>{RM(ytdTarget)} <span className="muted small">({ytdTarget ? Math.round(ytdProfit / ytdTarget * 100) : 0}% reached)</span></dd>
+      </dl>
+    </section>
   )
 }
