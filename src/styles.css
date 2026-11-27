@@ -279,3 +279,16 @@ i.e { background: linear-gradient(180deg, #fbbf24, #d97706); }
   .stat-label { font-size: .7rem; }
   .card { padding: .95rem; }
 }
+
+/* expense summary (main dashboard) */
+.exp-summary { margin-top: .5rem; }
+.exp-summary .sub-head { margin: 0; }
+.exp-summary > .row { margin-bottom: .75rem; }
+.exp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; align-items: start; }
+.exp-grid .card { margin: 0; }
+.exp-card h3 { margin: 0 0 .5rem; display: flex; align-items: center; gap: .45rem; font-size: .95rem; }
+.exp-card .list li { align-items: flex-start; }
+.exp-card .empty { padding: .8rem; }
+.exp-foot { display: flex; justify-content: space-between; padding-top: .55rem; margin-top: .25rem; border-top: 2px solid var(--line); font-variant-numeric: tabular-nums; }
+.exp-total { border-top: 3px solid #d97706; background: linear-gradient(160deg, color-mix(in srgb, #f59e0b 9%, var(--card)), var(--card) 60%); }
+.exp-total .stat-value { font-size: 1.8rem; }

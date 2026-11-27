@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RM, addMonths, coversMonth, monthLabel, paidFor, propColor, propertyStats, shortMonth, thisMonth, useData, useLookups } from '../lib/data'
+import { CATEGORIES, RM, addMonths, coversMonth, monthLabel, paidFor, propColor, propertyStats, shortMonth, thisMonth, useData, useLookups } from '../lib/data'
 import { Badge, MonthPicker, PropTag, Stat } from '../ui'
 import { Icon } from '../icons'
 import PropertyDashboard from './PropertyDashboard'
@@ -127,8 +127,49 @@ export default function Dashboard() {
           </ul>
         </section>
       </div>
+
+      <ExpenseSummary month={month} />
       </>}
     </>
+  )
+}
+
+/** Expenses for the month: one card per property (and company costs), each item with its amount, plus totals. */
+function ExpenseSummary({ month }: { month: string }) {
+  const { data } = useData()
+  const exp = data.expenses.filter(e => e.period === month)
+  const groups = [
+    ...data.properties.map(p => ({ key: p.id, title: <><PropTag code={p.code} color={propColor(data, p.id)} /> {p.name}</>, items: exp.filter(e => e.property_id === p.id) })),
+    { key: 'company', title: <>Company costs</>, items: exp.filter(e => !e.property_id) },
+  ]
+  const grand = exp.reduce((s, e) => s + e.amount, 0)
+  const byCat = Object.entries(exp.reduce<Record<string, number>>((a, e) => ({ ...a, [e.category]: (a[e.category] ?? 0) + e.amount }), {})).sort((a, b) => b[1] - a[1])
+  return (
+    <section className="exp-summary">
+      <div className="row between wrap"><h2 className="sub-head">Expenses · {monthLabel(month)}</h2><Link to="/expenses" className="btn small">Manage expenses →</Link></div>
+      <div className="exp-grid">
+        <div className="card exp-total">
+          <div className="stat-label">Total expenses · all properties</div>
+          <div className="stat-value">{RM(grand)}</div>
+          <dl className="sum flat">{byCat.map(([c, v]) => <Fragment key={c}><dt>{CATEGORIES[c] ?? c}</dt><dd>{RM(v)}</dd></Fragment>)}</dl>
+          {byCat.length === 0 && <p className="empty">No expenses recorded this month.</p>}
+        </div>
+        {groups.map(g => {
+          const total = g.items.reduce((s, e) => s + e.amount, 0)
+          return (
+            <div className="card exp-card" key={g.key}>
+              <h3>{g.title}</h3>
+              {g.items.length === 0 ? <p className="empty">No expenses.</p> : (
+                <ul className="list compact">{[...g.items].sort((a, b) => b.amount - a.amount).map(e => (
+                  <li key={e.id}><span>{e.label || CATEGORIES[e.category] || e.category}{e.label && !(CATEGORIES[e.category] ?? e.category).toLowerCase().startsWith(e.label.toLowerCase().slice(0, 5)) && <span className="muted small"> · {CATEGORIES[e.category] ?? e.category}</span>}{e.note && <div className="small muted">{e.note}</div>}</span><b className="num">{RM(e.amount)}</b></li>
+                ))}</ul>
+              )}
+              <div className="exp-foot"><span>Total</span><b>{RM(total)}</b></div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
