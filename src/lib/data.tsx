@@ -10,7 +10,7 @@ export type Property = {
   id: string; code: string; name: string; address: string | null; drive_url: string | null; map_url: string | null
   owner_rent: number; target_collected: number; target_expenses: number; sort: number
 }
-export type Room = { id: string; property_id: string; name: string; price: number; notes: string | null; sort: number; active: boolean }
+export type Room = { id: string; property_id: string; name: string; price: number; beds: number; notes: string | null; sort: number; active: boolean }
 export type Tenant = { id: string; full_name: string | null; nickname: string; ic_no: string | null; phone: string | null; notes: string | null }
 export type Tenancy = {
   id: string; room_id: string; tenant_id: string; status: 'active' | 'ended'; monthly_rent: number; deposit: number | null
@@ -119,12 +119,12 @@ export function propertyStats(d: Data, p: string): PropStats[] {
     const ts = d.tenancies.filter(t => roomIds.has(t.room_id))
     const tsIds = new Set(ts.map(t => t.id))
     const covering = ts.filter(t => coversMonth(t, p))
-    const occupied = new Set(ts.filter(t => t.status === 'active').map(t => t.room_id)).size
+    const occupied = rooms.reduce((s, r) => s + Math.min(r.beds || 1, ts.filter(t => t.room_id === r.id && t.status === 'active').length), 0)
     const expected = covering.reduce((s, t) => s + t.monthly_rent, 0)
     const collected = d.payments.filter(x => x.period === p && tsIds.has(x.tenancy_id)).reduce((s, x) => s + x.amount, 0)
     const expenses = d.expenses.filter(e => e.period === p && e.property_id === property.id).reduce((s, e) => s + e.amount, 0)
     const target = property.target_collected || expected
-    return { property, rooms: rooms.length, occupied, expected, collected, expenses, profit: collected - expenses, rate: target ? collected / target * 100 : 0 }
+    return { property, rooms: rooms.reduce((s, r) => s + (r.beds || 1), 0), occupied, expected, collected, expenses, profit: collected - expenses, rate: target ? collected / target * 100 : 0 }
   })
 }
 
@@ -139,11 +139,15 @@ export function useLookups() {
   const tenant = (id: string) => data.tenants.find(t => t.id === id)
   const tenancy = (id: string) => data.tenancies.find(t => t.id === id)
   const roomLabel = (id: string) => { const r = room(id); return r ? `${prop(r.property_id)?.code ?? ''} · ${r.name}` : '?' }
-  const activeTenancy = (roomId: string) => data.tenancies.find(t => t.room_id === roomId && t.status === 'active')
-  return { room, prop, tenant, tenancy, roomLabel, activeTenancy }
+  const activeTenancies = (roomId: string) => data.tenancies.filter(t => t.room_id === roomId && t.status === 'active')
+  const activeTenancy = (roomId: string) => activeTenancies(roomId)[0]
+  /** beds still free in a room (shared rooms have more than one bed) */
+  const freeBeds = (roomId: string) => { const r = room(roomId); return r ? Math.max(0, (r.beds || 1) - activeTenancies(roomId).length) : 0 }
+  return { room, prop, tenant, tenancy, roomLabel, activeTenancy, activeTenancies, freeBeds }
 }
 
 export function friendlyError(msg: string) {
+  if (msg.includes('room_full: ')) return msg.slice(msg.indexOf('room_full: ') + 11).replace(/^t/, 'T')
   if (msg.includes('one_active_tenancy_per_room')) return 'This room already has an active tenant. End that tenancy first.'
   if (msg.includes('one_active_tenancy_per_tenant')) return 'This tenant already rents another room. End that tenancy first (no duplicate tenants).'
   if (msg.includes('tenants_ic_unique')) return 'A tenant with this IC number already exists. Use the existing tenant instead.'

@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, propertyStats, useData, useLookups } from '../lib/data'
+import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, propertyStats, useData, useLookups, type Tenancy } from '../lib/data'
 import { Badge, Stat } from '../ui'
 
 export default function PropertyDashboard({ propertyId, month }: { propertyId: string; month: string }) {
@@ -17,12 +17,22 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
   const byCat = Object.entries(expenses.reduce<Record<string, number>>((a, e) => ({ ...a, [e.category]: (a[e.category] ?? 0) + e.amount }), {}))
   const occPct = st.rooms ? st.occupied / st.rooms * 100 : 0
 
-  const rooms = data.rooms.filter(r => r.property_id === p.id && r.active).sort((a, b) => a.sort - b.sort).map(r => {
-    const t = data.tenancies.find(x => x.room_id === r.id && coversMonth(x, month)) ?? L.activeTenancy(r.id)
-    const paid = data.tenancies.filter(x => x.room_id === r.id).reduce((a, x) => a + paidFor(data, x.id, month), 0)
-    const due = t && coversMonth(t, month) ? t.monthly_rent : 0
-    const status = !t ? 'Vacant' : paid >= due && due > 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Unpaid'
-    return { r, t, tenant: t && L.tenant(t.tenant_id), paid, due, status }
+  // one row per bed: tenants who cover this month (or are active), then empty beds
+  const rooms = data.rooms.filter(r => r.property_id === p.id && r.active).sort((a, b) => a.sort - b.sort).flatMap(r => {
+    const beds = r.beds || 1
+    const inRoom = data.tenancies.filter(x => x.room_id === r.id)
+    const covering = inRoom.filter(x => coversMonth(x, month))
+    const shown = (covering.length ? covering : inRoom.filter(x => x.status === 'active')).slice(0, Math.max(beds, covering.length))
+    const rows: { t?: Tenancy; paid: number; due: number; status: string }[] = shown.map(t => {
+      const paid = paidFor(data, t.id, month)
+      const due = coversMonth(t, month) ? t.monthly_rent : 0
+      return { t, paid, due, status: paid >= due && due > 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Unpaid' }
+    })
+    // payments from tenants not shown (e.g. moved out mid-month) still count for the room
+    const extra = inRoom.filter(x => !shown.includes(x)).reduce((a, x) => a + paidFor(data, x.id, month), 0)
+    if (rows.length && extra) rows[0].paid += extra
+    while (rows.length < beds) rows.push({ paid: rows.length === 0 ? extra : 0, due: 0, status: 'Vacant' })
+    return rows.map((x, i) => ({ ...x, r, key: r.id + i, label: beds > 1 ? `${r.name} · bed ${i + 1}` : r.name, tenant: x.t && L.tenant(x.t.tenant_id) }))
   })
   const max = Math.max(1, ...rooms.flatMap(x => [x.paid, x.r.price]))
 
@@ -33,7 +43,7 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
         <Stat label="Net collected" value={RM(st.collected)} sub={`Target ${RM(targetCollected)}`} />
         <Stat label="Total expenses" value={RM(st.expenses)} tone={p.target_expenses && st.expenses > p.target_expenses ? 'bad' : undefined} sub={`Target ${RM(p.target_expenses)}`} />
         <Stat label="Net profit / (loss)" value={RM(st.profit)} tone={st.profit < 0 ? 'bad' : 'ok'} sub={`Target profit ${RM(targetProfit)}`} />
-        <Stat label="Occupancy" value={`${Math.round(occPct)}%`} sub={`${st.occupied} of ${st.rooms} rooms occupied`} />
+        <Stat label="Occupancy" value={`${Math.round(occPct)}%`} sub={`${st.occupied} of ${st.rooms} beds occupied`} />
         <Stat label="Maintenance" value={RM(maintTotal)} sub={`${maint.length} item${maint.length === 1 ? '' : 's'} this month`} />
         <Stat label="Collection rate" value={`${Math.round(st.rate)}%`} tone={st.rate < alertAt ? 'bad' : 'ok'} sub={st.rate < alertAt ? `Below ${alertAt}% alert level` : 'At or above alert level'} />
       </div>
@@ -44,8 +54,8 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
           <div className="table-wrap"><table>
             <thead><tr><th>Room</th><th className="num">Price</th><th>Tenant</th><th className="num">Paid</th><th>Status</th></tr></thead>
             <tbody>{rooms.map(x => (
-              <tr key={x.r.id}>
-                <td>{x.r.name}</td>
+              <tr key={x.key}>
+                <td>{x.label}</td>
                 <td className="num">{RM(x.r.price)}</td>
                 <td>{x.tenant?.nickname ?? <span className="muted">—</span>}{x.t?.status === 'ended' && <span className="muted small"> (moved out)</span>}</td>
                 <td className="num">{x.paid ? RM(x.paid) : ''}</td>
@@ -59,12 +69,12 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
           <h2>Paid in month vs room price</h2>
           <div className="chart">
             {rooms.map(x => (
-              <div key={x.r.id} className="chart-col" title={`${x.r.name}: paid ${RM(x.paid)}, price ${RM(x.r.price)}`}>
+              <div key={x.key} className="chart-col" title={`${x.label}: paid ${RM(x.paid)}, price ${RM(x.r.price)}`}>
                 <div className="chart-bars">
                   <i className="c" style={{ height: x.paid / max * 100 + '%' }} />
                   <i className="p" style={{ height: x.r.price / max * 100 + '%' }} />
                 </div>
-                <small className="chart-label">{x.r.name.replace(/^Bilik /, '')}</small>
+                <small className="chart-label">{x.label.replace(/^Bilik /, '').replace(' · bed ', ' #')}</small>
               </div>
             ))}
           </div>

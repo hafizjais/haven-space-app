@@ -26,7 +26,7 @@ export default function Rooms() {
       </div>
       {data.properties.map(p => {
         const rooms = data.rooms.filter(r => r.property_id === p.id && (r.active || filter === 'all'))
-          .filter(r => filter === 'all' || !L.activeTenancy(r.id)).sort((a, b) => a.sort - b.sort)
+          .filter(r => filter === 'all' || L.freeBeds(r.id) > 0).sort((a, b) => a.sort - b.sort)
         if (filter === 'vacant' && rooms.length === 0) return null
         return (
           <section className="card" key={p.id}>
@@ -36,24 +36,31 @@ export default function Rooms() {
                 {p.map_url && <a className="btn small" href={p.map_url} target="_blank" rel="noreferrer">Map</a>}
                 {p.drive_url && <a className="btn small" href={p.drive_url} target="_blank" rel="noreferrer">Photos</a>}
                 <button className="small" onClick={() => setEditProp(p)}>Edit</button>
-                <button className="small" onClick={() => setEditRoom({ property_id: p.id, name: '', price: 0, active: true, sort: rooms.length + 1 })}>+ Room</button>
+                <button className="small" onClick={() => setEditRoom({ property_id: p.id, name: '', price: 0, beds: 1, active: true, sort: rooms.length + 1 })}>+ Room</button>
               </div>
             </div>
             <p className="muted small">{p.address}</p>
             <div className="rooms">{rooms.map(r => {
-              const t = L.activeTenancy(r.id)
-              const tn = t && L.tenant(t.tenant_id)
+              const ts = L.activeTenancies(r.id)
+              const beds = r.beds || 1
+              const free = L.freeBeds(r.id)
+              const one = (t: Tenancy) => { const tn = L.tenant(t.tenant_id); return tn && <>
+                <div>{tn.nickname} {t.monthly_rent !== r.price && <Badge kind="warn">pays {RM(t.monthly_rent)}</Badge>}</div>
+                <div className="small muted">{tn.phone || 'no phone'} · pay day {t.pay_day ?? '?'}</div>
+              </> }
               return (
-                <div key={r.id} className={`room ${t ? '' : 'vacant'} ${r.active ? '' : 'inactive'}`}>
-                  <div className="row between"><b>{r.name}</b><span>{RM(r.price)}</span></div>
-                  {t && tn ? <>
-                    <div>{tn.nickname} {t.monthly_rent !== r.price && <Badge kind="warn">pays {RM(t.monthly_rent)}</Badge>}</div>
-                    <div className="small muted">{tn.phone || 'no phone'} · pay day {t.pay_day ?? '?'}</div>
-                  </> : <div><Badge kind="ok">Vacant</Badge>{!r.active && <Badge kind="muted">Not in use</Badge>}</div>}
+                <div key={r.id} className={`room ${ts.length ? '' : 'vacant'} ${r.active ? '' : 'inactive'}`}>
+                  <div className="row between"><b>{r.name}</b><span>{RM(r.price)}{beds > 1 && <span className="muted small"> / bed</span>}</span></div>
+                  {beds > 1 && <div className="small muted">Shared room · {beds} beds · {free ? `${free} free` : 'full'}</div>}
+                  {beds === 1 ? (ts[0] ? one(ts[0]) : <div><Badge kind="ok">Vacant</Badge>{!r.active && <Badge kind="muted">Not in use</Badge>}</div>) :
+                    <ul className="beds">{Array.from({ length: Math.max(beds, ts.length) }, (_, i) => ts[i] ? (
+                      <li key={ts[i].id}><span className="bed-no">Bed {i + 1}</span><div className="grow">{one(ts[i])}</div>
+                        <button className="small" onClick={() => setMoveOut(ts[i])}>Move out</button></li>
+                    ) : <li key={'free' + i}><span className="bed-no">Bed {i + 1}</span><div className="grow"><Badge kind="ok">Vacant</Badge></div></li>)}</ul>}
                   <div className="row">
                     <button className="small" onClick={() => setEditRoom(r)}>Edit</button>
-                    {t ? <button className="small" onClick={() => setMoveOut(t)}>Move out</button>
-                      : r.active && <button className="small primary" onClick={() => setCheckIn(r)}>Check in tenant</button>}
+                    {beds === 1 && ts[0] && <button className="small" onClick={() => setMoveOut(ts[0])}>Move out</button>}
+                    {free > 0 && r.active && <button className="small primary" onClick={() => setCheckIn(r)}>Check in tenant</button>}
                   </div>
                 </div>
               )
@@ -76,7 +83,7 @@ function RoomModal({ room, onClose }: { room: Partial<Room>; onClose: () => void
   async function save() {
     if (!r.name?.trim()) return s.setErr('Room name is required.')
     const ok = await s.run(async () => {
-      const row = { property_id: r.property_id, name: r.name!.trim(), price: Number(r.price) || 0, notes: r.notes || null, active: r.active ?? true, sort: r.sort ?? 0 }
+      const row = { property_id: r.property_id, name: r.name!.trim(), price: Number(r.price) || 0, beds: Math.min(6, Math.max(1, Number(r.beds) || 1)), notes: r.notes || null, active: r.active ?? true, sort: r.sort ?? 0 }
       const { error } = r.id ? await supabase.from('rooms').update(row).eq('id', r.id) : await supabase.from('rooms').insert(row)
       if (error) throw new Error(friendlyError(error.message))
     })
@@ -86,7 +93,8 @@ function RoomModal({ room, onClose }: { room: Partial<Room>; onClose: () => void
     <Modal title={r.id ? 'Edit room' : 'New room'} onClose={onClose}>
       <div className="form-grid">
         <Field label="Room name"><input value={r.name ?? ''} onChange={e => setR({ ...r, name: e.target.value })} placeholder="e.g. Bilik Master" /></Field>
-        <Field label="Listed price (RM)"><input type="number" min="0" value={r.price ?? 0} onChange={e => setR({ ...r, price: Number(e.target.value) })} /></Field>
+        <Field label={(r.beds ?? 1) > 1 ? 'Listed price per bed (RM)' : 'Listed price (RM)'}><input type="number" min="0" value={r.price ?? 0} onChange={e => setR({ ...r, price: Number(e.target.value) })} /></Field>
+        <Field label="Beds (tenants)" hint="2 for a twin sharing room"><input type="number" min="1" max="6" value={r.beds ?? 1} onChange={e => setR({ ...r, beds: Number(e.target.value) })} /></Field>
       </div>
       <Field label="Notes"><input value={r.notes ?? ''} onChange={e => setR({ ...r, notes: e.target.value })} /></Field>
       <label className="check"><input type="checkbox" checked={r.active ?? true} onChange={e => setR({ ...r, active: e.target.checked })} /> Room is in use</label>
@@ -224,7 +232,7 @@ function MoveOutModal({ t, onClose }: { t: Tenancy; onClose: () => void }) {
   }
   return (
     <Modal title={`Move out · ${L.tenant(t.tenant_id)?.nickname}`} onClose={onClose}>
-      <p>{L.roomLabel(t.room_id)} will become vacant. Payment history is kept.</p>
+      <p>{(L.room(t.room_id)?.beds ?? 1) > 1 ? `This frees one bed in ${L.roomLabel(t.room_id)}.` : `${L.roomLabel(t.room_id)} will become vacant.`} Payment history is kept.</p>
       <Field label="Move-out date"><input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
       {s.err && <Alert>{s.err}</Alert>}
       <div className="row end"><button onClick={onClose}>Cancel</button><button className="primary" disabled={s.busy} onClick={save}>Confirm move out</button></div>

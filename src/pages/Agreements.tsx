@@ -86,7 +86,7 @@ function CreateAgreement({ onClose, onDone }: { onClose: () => void; onDone: (te
   const { data, reload } = useData()
   const L = useLookups()
   const [mode, setMode] = useState<'new' | 'current'>('new')
-  const vacant = data.rooms.filter(r => r.active && !L.activeTenancy(r.id))
+  const vacant = data.rooms.filter(r => r.active && L.freeBeds(r.id) > 0)
   const current = data.tenancies.filter(t => t.status === 'active')
   const [roomId, setRoomId] = useState('')
   const [tenancyId, setTenancyId] = useState('')
@@ -151,10 +151,10 @@ function CreateAgreement({ onClose, onDone }: { onClose: () => void; onDone: (te
     <Modal title="Create Agreement" onClose={onClose}>
       <div className="seg"><button className={mode === 'new' ? 'on' : ''} onClick={() => setMode('new')}>New tenant</button><button className={mode === 'current' ? 'on' : ''} onClick={() => setMode('current')}>Current tenant (renewal)</button></div>
       {mode === 'new' ? (
-        <Field label="Room (vacant only)">
+        <Field label="Room (with a free bed)">
           <select value={roomId} onChange={e => pickRoom(e.target.value)}>
             <option value="">Choose a room…</option>
-            {vacant.map(r => <option key={r.id} value={r.id}>{L.roomLabel(r.id)} · {RM(r.price)}</option>)}
+            {vacant.map(r => <option key={r.id} value={r.id}>{L.roomLabel(r.id)} · {RM(r.price)}{r.beds > 1 ? ` · ${L.freeBeds(r.id)} of ${r.beds} beds free` : ''}</option>)}
           </select>
         </Field>
       ) : (

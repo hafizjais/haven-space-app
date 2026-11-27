@@ -26,7 +26,7 @@ export default function Dashboard() {
     .map(x => ({ ...x, overdue: !isCurrent || now.getDate() > (x.t.pay_day ?? 1) + (data.settings?.grace_days ?? 7) }))
     .sort((a, b) => Number(b.overdue) - Number(a.overdue))
 
-  const vacant = data.rooms.filter(r => r.active && !L.activeTenancy(r.id))
+  const vacant = data.rooms.filter(r => r.active && L.freeBeds(r.id) > 0)
   const in60 = new Date(); in60.setDate(in60.getDate() + 60)
   const ending = data.tenancies.filter(t => t.status === 'active' && t.end_date && new Date(t.end_date) <= in60)
   const unsigned = data.tenancies.filter(t => t.status === 'active' && !t.signed)
@@ -57,7 +57,7 @@ export default function Dashboard() {
         <Stat label="Collected" value={RM(tot.collected)} sub={`of ${RM(tot.target)} target · ${tot.target ? Math.round(tot.collected / tot.target * 100) : 0}%`} />
         <Stat label="Expenses" value={RM(tot.expenses + company)} sub={`properties ${RM(tot.expenses)} · company ${RM(company)}`} />
         <Stat label="Profit" value={RM(profit)} tone={profit < 0 ? 'bad' : 'ok'} sub={monthLabel(month)} />
-        <Stat label="Occupancy" value={`${tot.occupied}/${tot.rooms}`} sub={`${tot.rooms ? Math.round(tot.occupied / tot.rooms * 100) : 0}% rooms filled · ${vacant.length} vacant`} />
+        <Stat label="Occupancy" value={`${tot.occupied}/${tot.rooms}`} sub={`${tot.rooms ? Math.round(tot.occupied / tot.rooms * 100) : 0}% beds filled · ${vacant.length} room${vacant.length === 1 ? '' : 's'} with space`} />
       </div>
 
       <div className="grid2">
@@ -122,7 +122,7 @@ export default function Dashboard() {
             {stats.filter(s => s.rate < alertAt).map(s => <li key={s.property.id}><span>⚠ <b>{s.property.code}</b> collection at {Math.round(s.rate)}% (below {alertAt}%)</span></li>)}
             {ending.map(t => <li key={t.id}><span>📅 <b>{L.tenant(t.tenant_id)?.nickname}</b> ({L.roomLabel(t.room_id)}) agreement ends {t.end_date}</span></li>)}
             {unsigned.length > 0 && <li><span>✎ {unsigned.length} active agreements not signed yet. <Link to="/agreements">View</Link></span></li>}
-            {vacant.length > 0 && <li><span>⌂ Vacant: {vacant.map(r => L.roomLabel(r.id)).join(', ')}</span></li>}
+            {vacant.length > 0 && <li><span>⌂ Vacant: {vacant.map(r => L.roomLabel(r.id) + (r.beds > 1 ? ` (${L.freeBeds(r.id)} of ${r.beds} beds)` : '')).join(', ')}</span></li>}
           </ul>
         </section>
       </div>
