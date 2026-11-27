@@ -12,9 +12,11 @@ import Expenses from './pages/Expenses'
 import Agreements from './pages/Agreements'
 import SettingsPage from './pages/Settings'
 
+import { Icon } from './icons'
+
 const NAV = [
-  ['/', 'Dashboard', '▦'], ['/payments', 'Payments', '₨'], ['/rooms', 'Rooms', '⌂'], ['/tenants', 'Tenants', '☺'],
-  ['/expenses', 'Expenses', '⇣'], ['/agreements', 'Agreements', '✎'], ['/settings', 'Settings', '⚙'],
+  ['/', 'Dashboard', 'dashboard'], ['/payments', 'Payments', 'wallet'], ['/rooms', 'Rooms', 'bed'], ['/tenants', 'Tenants', 'users'],
+  ['/expenses', 'Expenses', 'receipt'], ['/agreements', 'Agreements', 'file'], ['/settings', 'Settings', 'settings'],
 ] as const
 
 function Shell({ session }: { session: Session }) {
@@ -23,9 +25,9 @@ function Shell({ session }: { session: Session }) {
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand"><span className="logo">⌂</span> Haven Space</div>
+        <div className="brand"><span className="logo"><Icon name="home" size={18} /></span> Haven Space</div>
         <nav>{NAV.map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to === '/'}><span className="ico">{icon}</span><span>{label}</span></NavLink>
+          <NavLink key={to} to={to} end={to === '/'}><span className="ico"><Icon name={icon} /></span><span>{label}</span></NavLink>
         ))}</nav>
         <div className="me">
           <small>{session.user.email}</small>
