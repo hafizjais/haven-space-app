@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RM, coversMonth, friendlyError, monthLabel, paidFor, shortMonth, thisMonth, today, useData, useLookups, type Tenancy } from '../lib/data'
+import { RM, coversMonth, roomOrder, friendlyError, monthLabel, paidFor, shortMonth, thisMonth, today, useData, useLookups, type Tenancy } from '../lib/data'
 import { supabase } from '../lib/supabase'
 import { Alert, Badge, Field, Modal, MonthPicker, useSaver } from '../ui'
 
@@ -15,7 +15,7 @@ export default function Payments() {
   const props = data.properties.filter(p => !prop || p.id === prop)
   const tenanciesFor = (pid: string, test: (t: Tenancy) => boolean) =>
     data.tenancies.filter(t => L.room(t.room_id)?.property_id === pid && test(t))
-      .sort((a, b) => (L.room(a.room_id)?.sort ?? 0) - (L.room(b.room_id)?.sort ?? 0))
+      .sort((a, b) => roomOrder(L.room(a.room_id), L.room(b.room_id)))
 
   async function payFull(t: Tenancy) {
     const rest = t.monthly_rent - paidFor(data, t.id, month)

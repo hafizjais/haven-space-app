@@ -128,6 +128,12 @@ export function propertyStats(d: Data, p: string): PropStats[] {
   })
 }
 
+/** Room display order: single rooms first, then shared rooms; within each group by the room's position number. */
+export function roomOrder(a?: Room, b?: Room) {
+  if (!a || !b) return 0
+  return Number((a.beds || 1) > 1) - Number((b.beds || 1) > 1) || a.sort - b.sort || a.name.localeCompare(b.name)
+}
+
 export function paidFor(d: Data, tenancyId: string, p: string) {
   return d.payments.filter(x => x.tenancy_id === tenancyId && x.period === p).reduce((s, x) => s + x.amount, 0)
 }

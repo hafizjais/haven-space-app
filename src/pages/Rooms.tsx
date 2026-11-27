@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RM, friendlyError, icDigits, phoneDigits, today, useData, useLookups, type Property, type Room, type Tenancy } from '../lib/data'
+import { RM, friendlyError, roomOrder, icDigits, phoneDigits, today, useData, useLookups, type Property, type Room, type Tenancy } from '../lib/data'
 import { supabase } from '../lib/supabase'
 import { Alert, Badge, Field, Modal, useSaver } from '../ui'
 
@@ -26,7 +26,7 @@ export default function Rooms() {
       </div>
       {data.properties.map(p => {
         const rooms = data.rooms.filter(r => r.property_id === p.id && (r.active || filter === 'all'))
-          .filter(r => filter === 'all' || L.freeBeds(r.id) > 0).sort((a, b) => a.sort - b.sort)
+          .filter(r => filter === 'all' || L.freeBeds(r.id) > 0).sort(roomOrder)
         if (filter === 'vacant' && rooms.length === 0) return null
         return (
           <section className="card" key={p.id}>
@@ -95,6 +95,7 @@ function RoomModal({ room, onClose }: { room: Partial<Room>; onClose: () => void
         <Field label="Room name"><input value={r.name ?? ''} onChange={e => setR({ ...r, name: e.target.value })} placeholder="e.g. Bilik Master" /></Field>
         <Field label={(r.beds ?? 1) > 1 ? 'Listed price per bed (RM)' : 'Listed price (RM)'}><input type="number" min="0" value={r.price ?? 0} onChange={e => setR({ ...r, price: Number(e.target.value) })} /></Field>
         <Field label="Beds (tenants)" hint="2 for a twin sharing room"><input type="number" min="1" max="6" value={r.beds ?? 1} onChange={e => setR({ ...r, beds: Number(e.target.value) })} /></Field>
+        <Field label="Position" hint="Lower numbers show first. Shared rooms always show after single rooms."><input type="number" min="0" value={r.sort ?? 0} onChange={e => setR({ ...r, sort: Number(e.target.value) })} /></Field>
       </div>
       <Field label="Notes"><input value={r.notes ?? ''} onChange={e => setR({ ...r, notes: e.target.value })} /></Field>
       <label className="check"><input type="checkbox" checked={r.active ?? true} onChange={e => setR({ ...r, active: e.target.checked })} /> Room is in use</label>

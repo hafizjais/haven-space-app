@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, propertyStats, useData, useLookups, type Tenancy } from '../lib/data'
+import { CATEGORIES, RM, coversMonth, monthLabel, paidFor, propertyStats, roomOrder, useData, useLookups, type Tenancy } from '../lib/data'
 import { Badge, Stat } from '../ui'
 
 export default function PropertyDashboard({ propertyId, month }: { propertyId: string; month: string }) {
@@ -18,7 +18,7 @@ export default function PropertyDashboard({ propertyId, month }: { propertyId: s
   const occPct = st.rooms ? st.occupied / st.rooms * 100 : 0
 
   // one row per bed: tenants who cover this month (or are active), then empty beds
-  const rooms = data.rooms.filter(r => r.property_id === p.id && r.active).sort((a, b) => a.sort - b.sort).flatMap(r => {
+  const rooms = data.rooms.filter(r => r.property_id === p.id && r.active).sort(roomOrder).flatMap(r => {
     const beds = r.beds || 1
     const inRoom = data.tenancies.filter(x => x.room_id === r.id)
     const covering = inRoom.filter(x => coversMonth(x, month))
